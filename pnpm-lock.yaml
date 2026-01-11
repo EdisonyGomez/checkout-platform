@@ -10,6 +10,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@app/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.1.11(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -98,6 +101,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@app/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       react:
         specifier: ^19.2.0
         version: 19.2.3
@@ -141,6 +147,12 @@ importers:
       vite:
         specifier: ^7.2.4
         version: 7.3.1(@types/node@24.10.7)(terser@5.44.1)
+
+  packages/contracts:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 
