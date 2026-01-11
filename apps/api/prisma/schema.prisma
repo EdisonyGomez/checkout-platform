@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum StockStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  ERROR
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  price_cents Int
+  currency    String      @default("COP")
+  image_url   String?
+  created_at  DateTime    @default(now())
+
+  stock_items StockItem[]
+  transactions Transaction[]
+}
+
+model StockItem {
+  id              String      @id @default(uuid())
+  product_id      String
+  status          StockStatus @default(AVAILABLE)
+  reserved_until  DateTime?
+  reserved_tx_id  String?
+  created_at      DateTime    @default(now())
+
+  product         Product     @relation(fields: [product_id], references: [id])
+
+  @@index([product_id])
+  @@index([status])
+  @@index([reserved_until])
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  full_name  String
+  email      String
+  phone      String?
+  created_at DateTime @default(now())
+
+  deliveries    Delivery[]
+  transactions  Transaction[]
+}
+
+model Delivery {
+  id            String   @id @default(uuid())
+  customer_id   String
+  address_line  String
+  city          String
+  state         String
+  postal_code   String?
+  notes         String?
+  fee_cents     Int      @default(0)
+  created_at    DateTime @default(now())
+
+  customer      Customer @relation(fields: [customer_id], references: [id])
+  transactions  Transaction[]
+
+  @@index([customer_id])
+}
+
+model Transaction {
+  id                   String            @id @default(uuid())
+  public_number        String            @unique
+  product_id           String
+  customer_id          String?
+  delivery_id          String?
+  stock_item_id        String?
+
+  amount_product_cents Int
+  fee_base_cents       Int
+  fee_delivery_cents   Int
+  amount_total_cents   Int
+  currency             String            @default("COP")
+
+  status               TransactionStatus @default(PENDING)
+
+  wompi_transaction_id String?
+  wompi_reference      String?           @unique
+
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+
+  product              Product           @relation(fields: [product_id], references: [id])
+  customer             Customer?         @relation(fields: [customer_id], references: [id])
+  delivery             Delivery?         @relation(fields: [delivery_id], references: [id])
+
+  @@index([product_id])
+  @@index([status])
+  @@index([created_at])
+}
