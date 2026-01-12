@@ -1,13 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import ProductPage from './pages/ProductPage';
-import CheckoutPage from './pages/CheckoutPage';
+
+import CheckoutFlowPage from './pages/CheckoutFlowPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<ProductPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/" element={<CheckoutFlowPage />} />
+
       </Routes>
     </BrowserRouter>
   );

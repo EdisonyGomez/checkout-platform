@@ -1,35 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { payThunk, pollStatusThunk, resetCheckout, setStep } from '../features/checkout/checkoutSlice';
+import { pollStatusThunk, resetCheckout, setStep } from '../features/checkout/checkoutSlice';
+import { loadProducts } from '../features/products/productsSlice';
 
 export default function CheckoutPage() {
   const dispatch = useAppDispatch();
+  const nav = useNavigate();
   const checkout = useAppSelector((s) => s.checkout);
 
   const publicNumber = checkout.init?.public_number;
-  const transactionId = checkout.init?.transaction_id;
 
-  // Datos de tarjeta (fake)
-  const [cardNumber, setCardNumber] = useState('4242424242424242');
-  const [cardCvc, setCardCvc] = useState('123');
-  const [cardExpMonth, setCardExpMonth] = useState('12'); // debe ser string de 2 chars
-  const [cardExpYear, setCardExpYear] = useState('28');   // debe ser string de 2 chars
-  const [cardHolder, setCardHolder] = useState('YESID GOMEZ');
-  const [installments, setInstallments] = useState(1);
+  const [pollSeconds, setPollSeconds] = useState(0);
 
-  // Estado inicial del init (lo devuelve tu backend)
-  const initStatus = checkout.init?.status;
-
-  // Recovery: si recargó y hay init pero el step quedó en PRODUCT, lo devolvemos a INITED
+  // Recovery step
   useEffect(() => {
     if (checkout.init && checkout.step === 'PRODUCT') {
-      dispatch(setStep('INITED'));
+      dispatch(setStep('POLLING'));
     }
   }, [dispatch, checkout.init, checkout.step]);
 
-  // Polling: solo si estamos en POLLING, consultamos cada 2 segundos
-  const [pollSeconds, setPollSeconds] = useState(0);
-
+  // Polling
   useEffect(() => {
     if (!publicNumber) return;
     if (checkout.step !== 'POLLING') return;
@@ -44,167 +37,133 @@ export default function CheckoutPage() {
     return () => clearInterval(interval);
   }, [dispatch, publicNumber, checkout.step]);
 
-
   const statusText = useMemo(() => {
     if (checkout.status?.found === true) return checkout.status.status;
     if (checkout.status?.found === false) return 'NOT_FOUND';
-    return 'SIN_STATUS';
+    return 'PENDING';
   }, [checkout.status]);
 
-  const canPay = Boolean(transactionId) && initStatus === 'PENDING' && checkout.step !== 'POLLING' && checkout.step !== 'DONE';
+  const isFinal =
+    checkout.status?.found === true &&
+    checkout.status.status !== 'PENDING';
 
-  async function onPay() {
-    if (!transactionId) return;
+  // Cuando finaliza: refrescar productos y redirigir (pantalla 5)
+  useEffect(() => {
+    if (!isFinal) return;
 
-    await dispatch(
-      payThunk({
-        transaction_id: transactionId,
-        card_number: cardNumber,
-        card_cvc: cardCvc,
-        card_exp_month: cardExpMonth,
-        card_exp_year: cardExpYear,
-        card_holder: cardHolder,
-        installments,
-      }) as any,
-    );
+    dispatch(loadProducts());
+
+    const timeout = setTimeout(() => {
+      nav('/', { replace: true });
+    }, 1800);
+
+    return () => clearTimeout(timeout);
+  }, [dispatch, isFinal, nav]);
+
+  async function onReset() {
+    dispatch(resetCheckout());
+    nav('/', { replace: true });
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '24px auto', padding: 16 }}>
-      <h2>Checkout</h2>
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto max-w-md px-4 py-3">
+          <div className="text-sm font-semibold text-slate-900">Estado del pago</div>
+          <div className="text-xs text-slate-500">Seguimiento de transacción</div>
+        </div>
+      </header>
 
-      {!checkout.init && (
-        <p>
-          No hay checkout iniciado. Vuelve a <a href="/">/</a>
-        </p>
-      )}
-
-      {checkout.init && (
-        <>
-          <div>
-            public_number: <strong>{checkout.init.public_number}</strong>
-          </div>
-          <div>transaction_id: {checkout.init.transaction_id}</div>
-          <div>
-            total: {checkout.init.amount_total_cents} {checkout.init.currency}
-          </div>
-          <div>status init: <strong>{checkout.init.status}</strong></div>
-
-          <hr style={{ margin: '16px 0' }} />
-
-          {initStatus !== 'PENDING' && (
-            <div style={{ border: '1px solid #f0c', borderRadius: 12, padding: 12 }}>
-              <div style={{ fontWeight: 700 }}>La transacción no está en PENDING</div>
-              <div style={{ marginTop: 6 }}>
-                Si el init devolvió <strong>{initStatus}</strong>, no se puede continuar con el pago desde esta pantalla.
-              </div>
-              <div style={{ marginTop: 10 }}>
-                Acciones:
-                <ul>
-                  <li>Reinicia el checkout y vuelve a intentar.</li>
-                  <li>Si se queda en ERROR por idempotencia, usa un Idempotency-Key nuevo.</li>
-                </ul>
-              </div>
-              <button onClick={() => dispatch(resetCheckout())} style={{ width: '100%', padding: 12, marginTop: 8 }}>
-                Reiniciar checkout
-              </button>
+      <main className="mx-auto max-w-md px-4 py-4 space-y-3">
+        {!checkout.init && (
+          <Card>
+            <div className="text-sm text-slate-700">
+              No hay checkout iniciado. Vuelve a productos.
             </div>
-          )}
+            <div className="mt-3">
+              <Button onClick={() => nav('/')}>Volver</Button>
+            </div>
+          </Card>
+        )}
 
-          {initStatus === 'PENDING' && (
-            <>
-              <h3>Pago (tarjeta de prueba)</h3>
+        {checkout.init && (
+          <>
+            <Card>
+              <div className="text-xs text-slate-500">public_number</div>
+              <div className="text-sm font-bold text-slate-900">{checkout.init.public_number}</div>
 
-              <div style={{ display: 'grid', gap: 8 }}>
-                <input
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  placeholder="card_number (13-19 dígitos)"
-                  style={{ padding: 8 }}
-                />
-                <input
-                  value={cardCvc}
-                  onChange={(e) => setCardCvc(e.target.value)}
-                  placeholder="card_cvc (3-4 dígitos)"
-                  style={{ padding: 8 }}
-                />
-                <input
-                  value={cardExpMonth}
-                  onChange={(e) => setCardExpMonth(e.target.value)}
-                  placeholder="card_exp_month (2 chars, ej: 12)"
-                  style={{ padding: 8 }}
-                />
-                <input
-                  value={cardExpYear}
-                  onChange={(e) => setCardExpYear(e.target.value)}
-                  placeholder="card_exp_year (2 chars, ej: 28)"
-                  style={{ padding: 8 }}
-                />
-                <input
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value)}
-                  placeholder="card_holder"
-                  style={{ padding: 8 }}
-                />
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div>
+                  <div className="text-slate-500">transaction_id</div>
+                  <div className="font-semibold break-all">{checkout.init.transaction_id}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">total</div>
+                  <div className="font-semibold">
+                    {checkout.init.amount_total_cents} {checkout.init.currency}
+                  </div>
+                </div>
+              </div>
+            </Card>
 
-                <input
-                  type="number"
-                  min={1}
-                  max={36}
-                  value={installments}
-                  onChange={(e) => setInstallments(Number(e.target.value))}
-                  placeholder="installments (1..36)"
-                  style={{ padding: 8 }}
-                />
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-500">status</div>
+                  <div className="text-lg font-extrabold text-slate-900">{statusText}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-500">polling</div>
+                  <div className="text-sm font-semibold text-slate-900">{pollSeconds}s</div>
+                </div>
               </div>
 
-              <button
-                onClick={onPay}
-                disabled={!canPay || checkout.loading}
-                style={{ marginTop: 12, width: '100%', padding: 12 }}
-              >
-                Pagar
-              </button>
+              {checkout.status?.found === true && (
+                <div className="mt-3 text-xs text-slate-600 space-y-1">
+                  <div className="break-all">
+                    wompi_transaction_id: <span className="font-semibold">{checkout.status.wompi_transaction_id ?? '-'}</span>
+                  </div>
+                  <div>
+                    updated_at: <span className="font-semibold">{checkout.status.updated_at}</span>
+                  </div>
+                </div>
+              )}
 
-              {checkout.error && <p style={{ color: 'crimson', marginTop: 8 }}>{checkout.error}</p>}
-            </>
-          )}
+              {statusText === 'PENDING' && pollSeconds >= 20 && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  El pago sigue pendiente. En localhost el webhook puede no llegar. Usa la sincronización de estado.
+                  <div className="mt-2">
+                    <Button
+                      variant="secondary"
+                      onClick={async () => {
+                        // Llama sync via fetch directo para no expandir slice aquí.
+                        // Si ya tienes syncThunk, úsalo.
+                        const base = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+                        await fetch(`${base}/api/transactions/${checkout.init!.public_number}/sync`, { method: 'POST' });
+                        dispatch(pollStatusThunk(checkout.init!.public_number));
+                      }}
+                    >
+                      Sincronizar estado
+                    </Button>
+                  </div>
+                </div>
+              )}
 
-          <hr style={{ margin: '16px 0' }} />
+              {isFinal && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  Pago finalizado. Redirigiendo a productos...
+                </div>
+              )}
 
-          <h3>Estado (polling)</h3>
-          <div>step: {checkout.step}</div>
-          <div>
-            status: <strong>{statusText}</strong>
-          </div>
-
-          {checkout.step === 'POLLING' && statusText === 'PENDING' && (
-            <p>Esperando confirmación... {pollSeconds}s</p>
-          )}
-          {checkout.step === 'POLLING' && statusText === 'PENDING' && pollSeconds >= 30 && (
-            <div style={{ border: '1px solid #ddd', borderRadius: 12, padding: 12 }}>
-              <p>El pago sigue pendiente. Esto suele pasar si el webhook no llega (localhost).</p>
-              <p>Solución recomendada: exponer el backend con ngrok y configurar el webhook en sandbox.</p>
-            </div>
-          )}
-
-
-          {checkout.status?.found === true && (
-            <>
-              <div>wompi_transaction_id: {checkout.status.wompi_transaction_id ?? '-'}</div>
-              <div>updated_at: {checkout.status.updated_at}</div>
-            </>
-          )}
-
-          <button onClick={() => dispatch(resetCheckout())} style={{ marginTop: 12, width: '100%', padding: 12 }}>
-            Reiniciar checkout
-          </button>
-
-          <p style={{ marginTop: 12 }}>
-            <a href="/">Volver a productos</a>
-          </p>
-        </>
-      )}
+              <div className="mt-3">
+                <Button variant="danger" onClick={onReset}>
+                  Reiniciar checkout
+                </Button>
+              </div>
+            </Card>
+          </>
+        )}
+      </main>
     </div>
   );
 }
