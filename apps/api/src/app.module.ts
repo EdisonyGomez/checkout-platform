@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { CheckoutModule } from './modules/checkout/checkout.module';
 import { StockModule } from './modules/stock/stock.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 
 @Module({
@@ -19,7 +20,8 @@ imports: [
     ProductsModule,
     CheckoutModule,
     StockModule,
-    PaymentsModule
+    PaymentsModule,
+    WebhooksModule
   ], controllers: [AppController],
   providers: [AppService],
 })

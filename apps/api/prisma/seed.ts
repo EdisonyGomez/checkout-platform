@@ -49,7 +49,7 @@ async function main() {
       sku: 'SKU-MUG-001',
       name: 'Taza premium',
       description: 'Taza cerámica resistente, ideal para café.',
-      price_cents: 32000,
+      price_cents: 125000,
       currency: 'COP',
       units: 8,
     },
