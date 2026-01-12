@@ -1,5 +1,6 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
 import { PrismaService } from '../../infra/db/prisma.service';
+import { TransactionsSyncService } from './transactions-sync.service';
 
 /**
  * Controller encargado de consultas de transacciones.
@@ -7,18 +8,17 @@ import { PrismaService } from '../../infra/db/prisma.service';
  */
 @Controller('api/transactions')
 export class TransactionsController {
-  constructor(private readonly prisma: PrismaService) {}
+   constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncService: TransactionsSyncService,
+  ) {}
 
-  /**
+/**
    * Retorna el estado actual de una transacción usando el public_number.
-   *
-   * Este endpoint NO cambia estado.
-   * Solo permite al cliente conocer el resultado del pago.
+   * Se usa para status polling desde el cliente.
    */
   @Get(':publicNumber/status')
-  async getTransactionStatus(
-    @Param('publicNumber') publicNumber: string,
-  ) {
+  async getTransactionStatus(@Param('publicNumber') publicNumber: string) {
     const tx = await this.prisma.transaction.findUnique({
       where: { public_number: publicNumber },
       select: {
@@ -31,21 +31,17 @@ export class TransactionsController {
       },
     });
 
-    if (!tx) {
-      return {
-        found: false,
-        reason: 'TRANSACTION_NOT_FOUND',
-      };
-    }
+    if (!tx) return { found: false, reason: 'TRANSACTION_NOT_FOUND' };
 
-    return {
-      found: true,
-      id: tx.id,
-      public_number: tx.public_number,
-      status: tx.status,
-      wompi_transaction_id: tx.wompi_transaction_id,
-      stock_item_id: tx.stock_item_id,
-      updated_at: tx.updated_at,
-    };
+    return { found: true, ...tx };
+  }
+
+  /**
+   * Fallback de reconciliación: consulta al proveedor el estado real y aplica cambios en DB.
+   * Útil cuando el webhook no llega (localhost).
+   */
+  @Post(':publicNumber/sync')
+  async sync(@Param('publicNumber') publicNumber: string) {
+    return this.syncService.syncByPublicNumber(publicNumber);
   }
 }

@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TransactionsController } from './transactions.controller';
+import { TransactionsSyncService } from './transactions-sync.service';
+import { PrismaService } from '../../infra/db/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Módulo de consultas de transacciones.
@@ -7,5 +10,7 @@ import { TransactionsController } from './transactions.controller';
  */
 @Module({
   controllers: [TransactionsController],
+    providers: [TransactionsSyncService, PrismaService, ConfigService],
+
 })
 export class TransactionsModule {}
