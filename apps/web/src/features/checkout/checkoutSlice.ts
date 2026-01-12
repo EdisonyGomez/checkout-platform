@@ -119,11 +119,20 @@ reducers: {
 });
 
 export const payThunk = createAsyncThunk(
-    'checkout/pay',
-    async (args: { public_number: string; card: { number: string; cvc: string; exp_month: string; exp_year: string; holder: string } }) => {
-        return checkoutPay(args);
-    },
+  'checkout/pay',
+  async (args: {
+    transaction_id: string;
+    card_number: string;
+    card_cvc: string;
+    card_exp_month: string;
+    card_exp_year: string;
+    card_holder: string;
+    installments: number;
+  }) => {
+    return checkoutPay(args);
+  },
 );
+
 
 export const pollStatusThunk = createAsyncThunk('checkout/status', async (publicNumber: string) => {
     return fetchStatus(publicNumber);

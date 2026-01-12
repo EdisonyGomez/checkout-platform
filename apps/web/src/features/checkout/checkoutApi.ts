@@ -34,8 +34,13 @@ export async function checkoutInit(input: InitCheckoutInput, idempotencyKey: str
   return (await res.json()) as InitCheckoutResponse;
 }
 export type PayInput = {
-  public_number: string;
-  card: { number: string; cvc: string; exp_month: string; exp_year: string; holder: string };
+  transaction_id: string;
+  card_number: string;
+  card_cvc: string;
+  card_exp_month: string; // "12"
+  card_exp_year: string;  // "28"
+  card_holder: string;
+  installments: number;   // 1..36
 };
 
 export async function checkoutPay(input: PayInput) {
