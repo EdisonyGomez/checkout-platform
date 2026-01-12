@@ -12,6 +12,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       throw new Error('Falta la variable de entorno DATABASE_URL');
     }
 
+    const baseUrl = config.get<string>('PAYMENT_BASE_URL');
+if (!baseUrl) throw new Error('Falta PAYMENT_BASE_URL');
+
+
     const adapter = new PrismaPg({ connectionString });
     super({ adapter });
   }
