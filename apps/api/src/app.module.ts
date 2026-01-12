@@ -4,17 +4,16 @@ import { AppService } from './app.service';
 import { PrismaModule } from './infra/db/prisma.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ConfigModule } from '@nestjs/config';
+import { CheckoutModule } from './modules/checkout/checkout.module';
 
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['apps/api/.env', '.env']
-    }),
-    PrismaModule,
-    ProductsModule,
-  ], controllers: [AppController],
+imports: [
+  ConfigModule.forRoot({ isGlobal: true, envFilePath: ['apps/api/.env', '.env'] }),
+  PrismaModule,
+  ProductsModule,
+  CheckoutModule,
+], controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule { }

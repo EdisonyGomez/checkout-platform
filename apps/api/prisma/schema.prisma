@@ -53,13 +53,14 @@ model StockItem {
 model Customer {
   id         String   @id @default(uuid())
   full_name  String
-  email      String
+  email      String   @unique
   phone      String?
   created_at DateTime @default(now())
 
   deliveries    Delivery[]
   transactions  Transaction[]
 }
+
 
 model Delivery {
   id            String   @id @default(uuid())
@@ -81,6 +82,9 @@ model Delivery {
 model Transaction {
   id                   String            @id @default(uuid())
   public_number        String            @unique
+
+  idempotency_key      String?           @unique
+
   product_id           String
   customer_id          String?
   delivery_id          String?
