@@ -8,9 +8,12 @@ type MerchantResponse = {
   };
 };
 
+type TokenizeCardResponse = { data: { id: string } };
+
+
 @Injectable()
 export class PaymentGatewayService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService) { }
 
   private baseUrl() {
     const v = this.config.get<string>('PAYMENT_BASE_URL');
@@ -49,4 +52,37 @@ export class PaymentGatewayService {
       personal_data_auth_token: data.presigned_personal_data_auth.acceptance_token,
     };
   }
+
+
+  async tokenizeCard(input: {
+    number: string;
+    cvc: string;
+    exp_month: string; // "08"
+    exp_year: string;  // "28"
+    card_holder: string;
+  }) {
+    const url = `${this.baseUrl()}/tokens/cards`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.publicKey()}`,
+      },
+      body: JSON.stringify(input),
+    });
+
+    const json = (await res.json()) as TokenizeCardResponse | any;
+
+    if (!res.ok) {
+      // NO imprimas tarjeta/cvc. Solo error del proveedor.
+      throw new Error(`Error tokenizando tarjeta: ${res.status} ${JSON.stringify(json)}`);
+    }
+
+    return { card_token: json.data.id };
+  }
+
+
 }
+
+
