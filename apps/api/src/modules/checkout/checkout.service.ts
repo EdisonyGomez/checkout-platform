@@ -1,6 +1,7 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/db/prisma.service';
 import { StockStatus, TransactionStatus } from '@prisma/client';
+import { PaymentGatewayService } from '../payments/payment-gateway.service';
 
 const BASE_FEE_CENTS = 3000;       // fee base fija
 const DEFAULT_DELIVERY_FEE_CENTS = 5000; // fee delivery dummy (luego lo puedes calcular)
@@ -16,9 +17,14 @@ function makePublicNumber() {
   return `TX-${yyyymmdd}-${rand}`;
 }
 
+const WOMPI_MIN_AMOUNT_CENTS = 150000;
+
+
 @Injectable()
 export class CheckoutService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+    private readonly gateway: PaymentGatewayService,
+  ) { }
 
   async initCheckout(input: {
     idempotencyKey: string;
@@ -48,9 +54,9 @@ export class CheckoutService {
     if (existing) {
       const stock = existing.stock_item_id
         ? await this.prisma.stockItem.findUnique({
-            where: { id: existing.stock_item_id },
-            select: { reserved_until: true },
-          })
+          where: { id: existing.stock_item_id },
+          select: { reserved_until: true },
+        })
         : null;
 
       return {
@@ -190,5 +196,132 @@ export class CheckoutService {
       }
       throw e;
     }
+  }
+
+
+  /**
+   * Inicia el pago real en el proveedor usando una transacción local ya creada (PENDING).
+   * Flujo:
+   *  - valida que la transacción exista y esté PENDING
+   *  - valida que el stock esté reservado para esa transacción y no esté vencido
+   *  - tokeniza tarjeta en sandbox
+   *  - obtiene acceptance tokens del merchant
+   *  - crea transacción en proveedor con reference=public_number
+   *  - persiste wompi_transaction_id en nuestra transacción
+   */
+  async payCheckout(input: {
+    transactionId: string;
+    card: {
+      number: string;
+      cvc: string;
+      exp_month: string;
+      exp_year: string;
+      card_holder: string;
+    };
+    installments: number;
+  }) {
+    const txLocal = await this.prisma.transaction.findUnique({
+      where: { id: input.transactionId },
+      select: {
+        id: true,
+        public_number: true,
+        status: true,
+        amount_total_cents: true,
+        currency: true,
+        customer_id: true,
+        wompi_transaction_id: true,
+        wompi_reference: true,
+        stock_item_id: true,
+      },
+    });
+
+    if (!txLocal) throw new NotFoundException('Transacción no existe');
+
+    if (txLocal.status !== TransactionStatus.PENDING) {
+      throw new ConflictException('La transacción no está en estado PENDING');
+    }
+
+    if (!txLocal.customer_id) {
+      throw new ConflictException('La transacción no tiene customer asociado');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: txLocal.customer_id },
+      select: { email: true },
+    });
+
+    if (!customer?.email) throw new ConflictException('Customer sin email');
+
+    if (!txLocal.stock_item_id) {
+      throw new ConflictException('Transacción sin stock_item reservado');
+    }
+
+    const stock = await this.prisma.stockItem.findUnique({
+      where: { id: txLocal.stock_item_id },
+      select: { status: true, reserved_until: true, reserved_tx_id: true },
+    });
+
+    if (!stock) throw new ConflictException('StockItem no existe');
+    if (stock.reserved_tx_id !== txLocal.id) throw new ConflictException('StockItem no pertenece a la transacción');
+    if (stock.status !== StockStatus.RESERVED) throw new ConflictException('StockItem no está reservado');
+
+    const now = new Date();
+    if (stock.reserved_until && stock.reserved_until < now) {
+      throw new ConflictException('La reserva de stock está vencida');
+    }
+
+    if (txLocal.amount_total_cents < WOMPI_MIN_AMOUNT_CENTS) {
+      throw new BadRequestException('El monto mínimo para pagar es 1500 COP en sandbox');
+    }
+
+    // Idempotencia: si ya existe pago en proveedor, no se crea nuevamente
+    if (txLocal.wompi_transaction_id) {
+      return {
+        transaction_id: txLocal.id,
+        public_number: txLocal.public_number,
+        provider_transaction_id: txLocal.wompi_transaction_id,
+        provider_reference: txLocal.wompi_reference ?? txLocal.public_number,
+        provider_status: 'PENDING',
+        idempotent_replay: true,
+      };
+    }
+
+    const { card_token } = await this.gateway.tokenizeCard({
+      number: input.card.number,
+      cvc: input.card.cvc,
+      exp_month: input.card.exp_month,
+      exp_year: input.card.exp_year,
+      card_holder: input.card.card_holder,
+    });
+
+    const tokens = await this.gateway.getAcceptanceTokens();
+
+    const created = await this.gateway.createTransaction({
+      amount_in_cents: txLocal.amount_total_cents,
+      currency: txLocal.currency,
+      reference: txLocal.public_number,
+      customer_email: customer.email,
+      acceptance_token: tokens.acceptance_token,
+      personal_data_auth_token: tokens.personal_data_auth_token,
+      card_token,
+      installments: input.installments,
+    });
+
+    await this.prisma.transaction.update({
+      where: { id: txLocal.id },
+      data: {
+        wompi_transaction_id: created.provider_transaction_id,
+        wompi_reference: created.provider_reference,
+      },
+    });
+
+    return {
+      transaction_id: txLocal.id,
+      public_number: txLocal.public_number,
+      provider_transaction_id: created.provider_transaction_id,
+      provider_reference: created.provider_reference,
+      provider_status: created.provider_status,
+      idempotent_replay: false,
+    };
   }
 }
