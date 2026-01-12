@@ -33,3 +33,43 @@ export async function checkoutInit(input: InitCheckoutInput, idempotencyKey: str
 
   return (await res.json()) as InitCheckoutResponse;
 }
+export type PayInput = {
+  public_number: string;
+  card: { number: string; cvc: string; exp_month: string; exp_year: string; holder: string };
+};
+
+export async function checkoutPay(input: PayInput) {
+  const res = await fetch(`${API_BASE}/api/checkout/pay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Error pay (${res.status}) ${msg}`);
+  }
+
+  return res.json();
+}
+
+export type StatusResponse =
+  | { found: false; reason: string }
+  | {
+    found: true;
+    id: string;
+    public_number: string;
+    status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'ERROR';
+    wompi_transaction_id: string | null;
+    stock_item_id: string | null;
+    updated_at: string;
+  };
+
+export async function fetchStatus(publicNumber: string) {
+  const res = await fetch(`${API_BASE}/api/transactions/${publicNumber}/status`);
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Error status (${res.status}) ${msg}`);
+  }
+  return (await res.json()) as StatusResponse;
+}
