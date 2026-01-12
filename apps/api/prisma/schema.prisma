@@ -112,3 +112,19 @@ model Transaction {
   @@index([status])
   @@index([created_at])
 }
+
+
+model WebhookEvent {
+  id            String   @id
+  eventType     String
+  wompiTxId     String?
+  payload       Json
+  receivedAt    DateTime @default(now())
+  processedAt   DateTime?
+  status        String   @default("RECEIVED") // RECEIVED | PROCESSED | IGNORED | ERROR
+  errorMessage  String?
+
+  @@index([wompiTxId])
+  @@index([eventType])
+}
+
