@@ -1,0 +1,83 @@
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { checkoutInit, type InitCheckoutInput, type InitCheckoutResponse } from './checkoutApi';
+
+type CheckoutStep = 'PRODUCT' | 'INITED';
+
+type CheckoutState = {
+  step: CheckoutStep;
+  loading: boolean;
+  error?: string;
+  init?: InitCheckoutResponse;
+  idempotencyKey?: string;
+};
+
+const STORAGE_KEY = 'checkout_state_v1';
+
+function loadState(): CheckoutState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CheckoutState;
+  } catch {
+    return null;
+  }
+}
+
+function persistState(state: CheckoutState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
+const initialState: CheckoutState = loadState() ?? {
+  step: 'PRODUCT',
+  loading: false,
+};
+
+export const initCheckoutThunk = createAsyncThunk(
+  'checkout/init',
+  async (args: { input: InitCheckoutInput; idempotencyKey: string }) => {
+    return checkoutInit(args.input, args.idempotencyKey);
+  },
+);
+
+const checkoutSlice = createSlice({
+  name: 'checkout',
+  initialState,
+  reducers: {
+    resetCheckout(state) {
+      state.step = 'PRODUCT';
+      state.loading = false;
+      state.error = undefined;
+      state.init = undefined;
+      state.idempotencyKey = undefined;
+      persistState(state);
+    },
+  },
+  extraReducers(builder) {
+    builder
+      .addCase(initCheckoutThunk.pending, (state, action) => {
+        state.loading = true;
+        state.error = undefined;
+        state.idempotencyKey = action.meta.arg.idempotencyKey;
+        persistState(state);
+      })
+      .addCase(initCheckoutThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.init = action.payload;
+        state.step = 'INITED';
+        persistState(state);
+      })
+      .addCase(initCheckoutThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? 'Error init';
+        persistState(state);
+      });
+  },
+});
+
+export const { resetCheckout } = checkoutSlice.actions;
+export default checkoutSlice.reducer;
+

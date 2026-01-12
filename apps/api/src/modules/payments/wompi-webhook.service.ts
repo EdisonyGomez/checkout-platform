@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PrismaClient, TransactionStatus, StockStatus } from '@prisma/client';
+import { PrismaService } from 'src/infra/db/prisma.service';
+import { StockStatus, TransactionStatus } from '@prisma/client';
 
 type WompiStatus = 'PENDING' | 'APPROVED' | 'DECLINED' | 'ERROR' | 'VOIDED' | string;
 
@@ -19,7 +20,7 @@ interface WompiWebhookPayload {
 
 @Injectable()
 export class WompiWebhookService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Procesa el webhook:

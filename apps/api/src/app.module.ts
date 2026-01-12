@@ -8,6 +8,8 @@ import { CheckoutModule } from './modules/checkout/checkout.module';
 import { StockModule } from './modules/stock/stock.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
+import { DatabaseModule } from './infra/db/database.module';
 
 
 @Module({
@@ -16,12 +18,14 @@ imports: [
       isGlobal: true,
       envFilePath: ['apps/api/.env', '.env'],
     }),
+    DatabaseModule,
     PrismaModule,
     ProductsModule,
     CheckoutModule,
     StockModule,
     PaymentsModule,
-    WebhooksModule
+    WebhooksModule,
+    TransactionsModule
   ], controllers: [AppController],
   providers: [AppService],
 })
