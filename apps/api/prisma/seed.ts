@@ -41,7 +41,7 @@ async function main() {
       sku: 'SKU-TEE-001',
       name: 'Camiseta básica',
       description: 'Camiseta algodón, cómoda para el día a día.',
-      price_cents: 45000,
+      price_cents: 120000,
       currency: 'COP',
       units: 12,
     },

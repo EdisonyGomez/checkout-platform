@@ -3,8 +3,8 @@ import { PrismaService } from '../../infra/db/prisma.service';
 import { StockStatus, TransactionStatus } from '@prisma/client';
 import { PaymentGatewayService } from '../payments/payment-gateway.service';
 
-const BASE_FEE_CENTS = 3000;       // fee base fija
-const DEFAULT_DELIVERY_FEE_CENTS = 5000; // fee delivery dummy (luego lo puedes calcular)
+const BASE_FEE_CENTS = 50000;        // $500 COP
+const DEFAULT_DELIVERY_FEE_CENTS = 70000; // $700 COP
 const RESERVATION_TTL_MINUTES = 10;
 
 function makePublicNumber() {
