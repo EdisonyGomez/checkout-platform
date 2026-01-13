@@ -14,7 +14,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['checkout-platform-web.vercel.app'],
+    origin: ['https://checkout-platform-web.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-event-checksum', 'x-signature'],
     credentials: false,
