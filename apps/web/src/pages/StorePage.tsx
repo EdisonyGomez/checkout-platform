@@ -213,11 +213,11 @@ export default function StorePage() {
             : checkout.init?.transaction_id ?? '-';
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
+        <div className="min-h-screen bg-slate-50 flex flex-col  w-dvw ">
             <TopBar />
 
             <main className="flex-1 mx-auto w-full  px-4 py-8 ">
-                <section className="mx-auto max-w-6xl px-4 py-8">
+                <section className="mx-auto max-w-6xl px-4 py-8  ">
 
                     <div className="flex items-start gap-3">
                         <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center border border-green-200">
