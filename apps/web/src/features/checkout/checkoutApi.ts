@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://checkout-platform.onrender.com/';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://checkout-platform.onrender.com';
 
 export type InitCheckoutInput = {
   product_id: string;
