@@ -4,9 +4,8 @@ SPA en React + Redux (mobile-first) y API en NestJS + Prisma + Postgres.
 Flujo completo de checkout con tarjeta (sandbox), actualización de stock, webhooks y status polling.
 
 ## Demo (Deploy)
-- Web (Frontend): [<URL>](https://checkout-platform-web.vercel.app/)
-- API (Backend): [<URL>](https://checkout-platform.onrender.com/)
-- Swagger / Postman: <URL o ruta>
+- Web (Frontend): (https://checkout-platform-web.vercel.app/)
+- API (Backend): (https://checkout-platform.onrender.com/)
 
 ## Arquitectura
 - **Frontend**: React + Redux Toolkit + localStorage recovery
