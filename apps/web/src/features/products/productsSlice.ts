@@ -32,7 +32,7 @@ const productsSlice = createSlice({
       })
       .addCase(loadProducts.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Error desconocido';
+        state.error = action.error.message ?? 'Error';
       });
   },
 });

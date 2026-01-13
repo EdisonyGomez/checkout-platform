@@ -8,11 +8,11 @@ export type ProductDto = {
   price_cents: number;
   currency: string;
   image_url?: string | null;
-  available_units?: number;
+  available_units: number;
 };
 
 export async function fetchProducts(): Promise<ProductDto[]> {
   const res = await fetch(`${API_BASE}/api/products`);
-  if (!res.ok) throw new Error(`Error cargando productos (${res.status})`);
+  if (!res.ok) throw new Error(`Error products (${res.status})`);
   return res.json();
 }

@@ -1,15 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-
-import CheckoutFlowPage from './pages/CheckoutFlowPage';
+import StorePage from './pages/StorePage';
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-                <Route path="/" element={<CheckoutFlowPage />} />
-
-      </Routes>
-    </BrowserRouter>
-  );
+  return <StorePage />;
 }
-

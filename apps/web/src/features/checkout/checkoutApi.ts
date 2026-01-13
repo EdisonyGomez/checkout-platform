@@ -13,7 +13,8 @@ export type InitCheckoutResponse = {
   amount_total_cents: number;
   currency: string;
   stock_item_id: string | null;
-  reserved_until?: string | null;
+  reserved_until: string | null;
+  idempotent_replay?: boolean;
 };
 
 export async function checkoutInit(input: InitCheckoutInput, idempotencyKey: string) {
@@ -25,22 +26,18 @@ export async function checkoutInit(input: InitCheckoutInput, idempotencyKey: str
     },
     body: JSON.stringify(input),
   });
-
-  if (!res.ok) {
-    const msg = await res.text().catch(() => '');
-    throw new Error(`Error init (${res.status}) ${msg}`);
-  }
-
+  if (!res.ok) throw new Error(`Error init (${res.status})`);
   return (await res.json()) as InitCheckoutResponse;
 }
+
 export type PayInput = {
   transaction_id: string;
   card_number: string;
   card_cvc: string;
-  card_exp_month: string; // "12"
-  card_exp_year: string;  // "28"
+  card_exp_month: string;
+  card_exp_year: string;
   card_holder: string;
-  installments: number;   // 1..36
+  installments: number;
 };
 
 export async function checkoutPay(input: PayInput) {
@@ -49,32 +46,36 @@ export async function checkoutPay(input: PayInput) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-
   if (!res.ok) {
     const msg = await res.text().catch(() => '');
     throw new Error(`Error pay (${res.status}) ${msg}`);
   }
-
   return res.json();
 }
 
 export type StatusResponse =
   | { found: false; reason: string }
   | {
-    found: true;
-    id: string;
-    public_number: string;
-    status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'ERROR';
-    wompi_transaction_id: string | null;
-    stock_item_id: string | null;
-    updated_at: string;
-  };
+      found: true;
+      id: string;
+      public_number: string;
+      status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'ERROR';
+      wompi_transaction_id: string | null;
+      stock_item_id: string | null;
+      updated_at: string;
+    };
 
 export async function fetchStatus(publicNumber: string) {
   const res = await fetch(`${API_BASE}/api/transactions/${publicNumber}/status`);
+  if (!res.ok) throw new Error(`Error status (${res.status})`);
+  return (await res.json()) as StatusResponse;
+}
+
+export async function syncStatus(publicNumber: string) {
+  const res = await fetch(`${API_BASE}/api/transactions/${publicNumber}/sync`, { method: 'POST' });
   if (!res.ok) {
     const msg = await res.text().catch(() => '');
-    throw new Error(`Error status (${res.status}) ${msg}`);
+    throw new Error(`Error sync (${res.status}) ${msg}`);
   }
-  return (await res.json()) as StatusResponse;
+  return res.json();
 }
